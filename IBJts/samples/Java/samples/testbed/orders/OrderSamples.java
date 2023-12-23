@@ -1,4 +1,4 @@
-/* Copyright (C) 2019 Interactive Brokers LLC. All rights reserved. This code is subject to the terms
+/* Copyright (C) 2023 Interactive Brokers LLC. All rights reserved. This code is subject to the terms
  * and conditions of the IB API Non-Commercial License or the IB API Commercial License, as applicable. */
 
 package samples.testbed.orders;
@@ -278,7 +278,7 @@ public class OrderSamples {
 		Order order = new Order();
 		order.action(action);
 		order.tif("OPG");
-		order.orderType("LOC");
+		order.orderType("LMT");
 		order.totalQuantity(quantity);
 		order.lmtPrice(limitPrice);
 		// ! [limitonopen]

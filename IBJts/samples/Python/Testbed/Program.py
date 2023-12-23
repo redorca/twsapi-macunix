@@ -1,5 +1,5 @@
 """
-Copyright (C) 2019 Interactive Brokers LLC. All rights reserved. This code is subject to the terms
+Copyright (C) 2023 Interactive Brokers LLC. All rights reserved. This code is subject to the terms
  and conditions of the IB API Non-Commercial License or the IB API Commercial License, as applicable.
 """
 
@@ -37,6 +37,7 @@ from AvailableAlgoParams import AvailableAlgoParams
 from ScannerSubscriptionSamples import ScannerSubscriptionSamples
 from FaAllocationSamples import FaAllocationSamples
 from ibapi.scanner import ScanData
+from decimal import Decimal
 
 
 def SetupLogger():
@@ -74,7 +75,9 @@ def printinstance(inst:Object):
     #print(', '.join('{}:{}'.format(key, decimalMaxString(value) if type(value) is Decimal else value) for key, value in attrs.items()))
     print(', '.join('{}:{}'.format(key, decimalMaxString(value) if type(value) is Decimal else
                                    floatMaxString(value) if type(value) is float else
-                                   intMaxString(value) if type(value) is int else  
+                                   intMaxString(value) if type(value) is int else
+                                   getEnumTypeName(FundAssetType, value) if type(value) is FundAssetType else
+                                   getEnumTypeName(FundDistributionPolicyIndicator, value) if type(value) is FundDistributionPolicyIndicator else  
                                    value) for key, value in attrs.items()))
 
 class Activity(Object):
@@ -346,7 +349,8 @@ class TestApp(TestWrapper, TestClient):
               "LmtPrice:", floatMaxString(order.lmtPrice), "AuxPrice:", floatMaxString(order.auxPrice), "Status:", orderState.status,
               "MinTradeQty:", intMaxString(order.minTradeQty), "MinCompeteSize:", intMaxString(order.minCompeteSize),
               "competeAgainstBestOffset:", "UpToMid" if order.competeAgainstBestOffset == COMPETE_AGAINST_BEST_OFFSET_UP_TO_MID else floatMaxString(order.competeAgainstBestOffset),
-              "MidOffsetAtWhole:", floatMaxString(order.midOffsetAtWhole),"MidOffsetAtHalf:" ,floatMaxString(order.midOffsetAtHalf))
+              "MidOffsetAtWhole:", floatMaxString(order.midOffsetAtWhole),"MidOffsetAtHalf:" ,floatMaxString(order.midOffsetAtHalf),
+              "FAGroup:", order.faGroup, "FAMethod:", order.faMethod)
 
         order.contract = contract
         self.permId2ord[order.permId] = order
@@ -459,7 +463,7 @@ class TestApp(TestWrapper, TestClient):
         # ! [reqpnl]
 
         # ! [reqpnlsingle]
-        self.reqPnLSingle(17002, "DU111519", "", 8314);
+        self.reqPnLSingle(17002, "DU111519", "", 8314)
         # ! [reqpnlsingle]
 
     def pnlOperations_cancel(self):
@@ -468,17 +472,17 @@ class TestApp(TestWrapper, TestClient):
         # ! [cancelpnl]
 
         # ! [cancelpnlsingle]
-        self.cancelPnLSingle(17002);
+        self.cancelPnLSingle(17002)
         # ! [cancelpnlsingle]
 
     def histogramOperations_req(self):
         # ! [reqhistogramdata]
-        self.reqHistogramData(4002, ContractSamples.USStockAtSmart(), False, "3 days");
+        self.reqHistogramData(4002, ContractSamples.USStockAtSmart(), False, "3 days")
         # ! [reqhistogramdata]
 
     def histogramOperations_cancel(self):
         # ! [cancelhistogramdata]
-        self.cancelHistogramData(4002);
+        self.cancelHistogramData(4002)
         # ! [cancelhistogramdata]
 
     def continuousFuturesOperations_req(self):
@@ -488,12 +492,12 @@ class TestApp(TestWrapper, TestClient):
 
         # ! [reqhistoricaldatacontfut]
         timeStr = datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%d-%H:%M:%S')
-        self.reqHistoricalData(18002, ContractSamples.ContFut(), timeStr, "1 Y", "1 month", "TRADES", 0, 1, False, []);
+        self.reqHistoricalData(18002, ContractSamples.ContFut(), timeStr, "1 Y", "1 month", "TRADES", 0, 1, False, [])
         # ! [reqhistoricaldatacontfut]
 
     def continuousFuturesOperations_cancel(self):
         # ! [cancelhistoricaldatacontfut]
-        self.cancelHistoricalData(18002);
+        self.cancelHistoricalData(18002)
         # ! [cancelhistoricaldatacontfut]
 
     @iswrapper
@@ -699,7 +703,7 @@ class TestApp(TestWrapper, TestClient):
         # ! [reqoptiondatagenticks]
         # Requesting data for an option contract will return the greek values
         self.reqMktData(1013, ContractSamples.OptionWithLocalSymbol(), "", False, False, [])
-        self.reqMktData(1014, ContractSamples.FuturesOnOptions(), "", False, False, []);
+        self.reqMktData(1014, ContractSamples.FuturesOnOptions(), "", False, False, [])
         
         # ! [reqoptiondatagenticks]
 
@@ -728,6 +732,9 @@ class TestApp(TestWrapper, TestClient):
         self.reqMktData(1020, ContractSamples.StockWithIPOPrice(), "mdoff,586", False, False, [])
         # ! [reqetfticks]
         
+        # ! [yieldbidask]
+        self.reqMktData(1021, ContractSamples.Bond(), "", False, False, [])
+        # ! [yieldbidask]
 
     @printWhenExecuting
     def tickDataOperations_cancel(self):
@@ -760,6 +767,7 @@ class TestApp(TestWrapper, TestClient):
 
         self.cancelMktData(1019)
         self.cancelMktData(1020)
+        self.cancelMktData(1021)
 
     @printWhenExecuting
     def tickOptionComputations_req(self):
@@ -1102,7 +1110,7 @@ class TestApp(TestWrapper, TestClient):
         # Exercising options
         # ! [exercise_options]
         self.exerciseOptions(5003, ContractSamples.OptionWithTradingClass(), 1,
-                             1, self.account, 1)
+                             1, self.account, 1, "20231018-12:00:00")
         # ! [exercise_options]
 
     @printWhenExecuting
@@ -1158,6 +1166,7 @@ class TestApp(TestWrapper, TestClient):
         self.reqContractDetails(215, ContractSamples.USStockAtSmart())
         self.reqContractDetails(216, ContractSamples.CryptoContract())
         self.reqContractDetails(217, ContractSamples.ByIssuerId())
+        self.reqContractDetails(219, ContractSamples.FundContract())
         # ! [reqcontractdetails]
 
         # ! [reqmatchingsymbols]
@@ -1168,7 +1177,7 @@ class TestApp(TestWrapper, TestClient):
     def newsOperations_req(self):
         # Requesting news ticks
         # ! [reqNewsTicks]
-        self.reqMktData(10001, ContractSamples.USStockAtSmart(), "mdoff,292", False, False, []);
+        self.reqMktData(10001, ContractSamples.USStockAtSmart(), "mdoff,292", False, False, [])
         # ! [reqNewsTicks]
 
         # Returns list of subscribed news providers
@@ -1194,7 +1203,7 @@ class TestApp(TestWrapper, TestClient):
     def newsOperations_cancel(self):
         # Canceling news ticks
         # ! [cancelNewsTicks]
-        self.cancelMktData(10001);
+        self.cancelMktData(10001)
         # ! [cancelNewsTicks]
 
     @iswrapper
@@ -1295,7 +1304,7 @@ class TestApp(TestWrapper, TestClient):
         tagvalues = []
         tagvalues.append(TagValue("usdMarketCapAbove", "10000"))
         tagvalues.append(TagValue("optVolumeAbove", "1000"))
-        tagvalues.append(TagValue("avgVolumeAbove", "10000"));
+        tagvalues.append(TagValue("avgVolumeAbove", "10000"))
 
         self.reqScannerSubscription(7002, ScannerSubscriptionSamples.HotUSStkByVolume(), [], tagvalues) # requires TWS v973+
         # ! [reqscannersubscription]
@@ -1380,11 +1389,11 @@ class TestApp(TestWrapper, TestClient):
         # ! [reqfundamentaldata]
         
         # ! [fundamentalexamples]
-        self.reqFundamentalData(8002, ContractSamples.USStock(), "ReportSnapshot", []); # for company overview
-        self.reqFundamentalData(8003, ContractSamples.USStock(), "ReportRatios", []); # for financial ratios
-        self.reqFundamentalData(8004, ContractSamples.USStock(), "ReportsFinStatements", []); # for financial statements
-        self.reqFundamentalData(8005, ContractSamples.USStock(), "RESC", []); # for analyst estimates
-        self.reqFundamentalData(8006, ContractSamples.USStock(), "CalendarReport", []); # for company calendar
+        self.reqFundamentalData(8002, ContractSamples.USStock(), "ReportSnapshot", []) # for company overview
+        self.reqFundamentalData(8003, ContractSamples.USStock(), "ReportRatios", []) # for financial ratios
+        self.reqFundamentalData(8004, ContractSamples.USStock(), "ReportsFinStatements", []) # for financial statements
+        self.reqFundamentalData(8005, ContractSamples.USStock(), "RESC", []) # for analyst estimates
+        self.reqFundamentalData(8006, ContractSamples.USStock(), "CalendarReport", []) # for company calendar
         # ! [fundamentalexamples]
 
     @printWhenExecuting
@@ -1494,9 +1503,9 @@ class TestApp(TestWrapper, TestClient):
 
     def algoSamples(self):
         # ! [scale_order]
-        scaleOrder = OrderSamples.RelativePeggedToPrimary("BUY",  70000,  189,  0.01);
-        AvailableAlgoParams.FillScaleParams(scaleOrder, 2000, 500, True, .02, 189.00, 3600, 2.00, True, 10, 40);
-        self.placeOrder(self.nextOrderId(), ContractSamples.USStockAtSmart(), scaleOrder);
+        scaleOrder = OrderSamples.RelativePeggedToPrimary("BUY",  70000,  189,  0.01)
+        AvailableAlgoParams.FillScaleParams(scaleOrder, 2000, 500, True, .02, 189.00, 3600, 2.00, True, 10, 40)
+        self.placeOrder(self.nextOrderId(), ContractSamples.USStockAtSmart(), scaleOrder)
         # ! [scale_order]
 
         time.sleep(1)
@@ -1601,26 +1610,10 @@ class TestApp(TestWrapper, TestClient):
         self.requestFA(FaDataTypeEnum.GROUPS)
         # ! [requestfagroups]
 
-        # ! [requestfaprofiles]
-        self.requestFA(FaDataTypeEnum.PROFILES)
-        # ! [requestfaprofiles]
-
         # Replacing FA information - Fill in with the appropriate XML string.
-        # ! [replacefaonegroup]
-        self.replaceFA(1000, FaDataTypeEnum.GROUPS, FaAllocationSamples.FaOneGroup)
-        # ! [replacefaonegroup]
-
-        # ! [replacefatwogroups]
-        self.replaceFA(1001, FaDataTypeEnum.GROUPS, FaAllocationSamples.FaTwoGroups)
-        # ! [replacefatwogroups]
-
-        # ! [replacefaoneprofile]
-        self.replaceFA(1002, FaDataTypeEnum.PROFILES, FaAllocationSamples.FaOneProfile)
-        # ! [replacefaoneprofile]
-
-        # ! [replacefatwoprofiles]
-        self.replaceFA(1003, FaDataTypeEnum.PROFILES, FaAllocationSamples.FaTwoProfiles)
-        # ! [replacefatwoprofiles]
+        # ! [replacefaupdatedgroup]
+        self.replaceFA(1000, FaDataTypeEnum.GROUPS, FaAllocationSamples.FaUpdatedGroup)
+        # ! [replacefaupdatedgroup]
 
         # ! [reqSoftDollarTiers]
         self.reqSoftDollarTiers(14001)
@@ -1756,27 +1749,18 @@ class TestApp(TestWrapper, TestClient):
         self.placeOrder(self.nextOrderId(), ContractSamples.USStock(), faOrderOneAccount)
         # ! [faorderoneaccount]
 
-        # ! [faordergroupequalquantity]
-        faOrderGroupEQ = OrderSamples.LimitOrder("SELL", 200, 2000)
-        faOrderGroupEQ.faGroup = "Group_Equal_Quantity"
-        faOrderGroupEQ.faMethod = "EqualQuantity"
-        self.placeOrder(self.nextOrderId(), ContractSamples.SimpleFuture(), faOrderGroupEQ)
-        # ! [faordergroupequalquantity]
+        # ! [faordergroup]
+        faOrderGroup = OrderSamples.LimitOrder("BUY", 200, 10)
+        faOrderGroup.faGroup = "MyTestGroup1"
+        faOrderGroup.faMethod = "AvailableEquity"
+        self.placeOrder(self.nextOrderId(), ContractSamples.USStockAtSmart(), faOrderGroup)
+        # ! [faordergroup]
 
-        # ! [faordergrouppctchange]
-        faOrderGroupPC = OrderSamples.MarketOrder("BUY", 0)
-        # You should not specify any order quantity for PctChange allocation method
-        faOrderGroupPC.faGroup = "Pct_Change"
-        faOrderGroupPC.faMethod = "PctChange"
-        faOrderGroupPC.faPercentage = "100"
-        self.placeOrder(self.nextOrderId(), ContractSamples.EurGbpFx(), faOrderGroupPC)
-        # ! [faordergrouppctchange]
-
-        # ! [faorderprofile]
-        faOrderProfile = OrderSamples.LimitOrder("BUY", 200, 100)
-        faOrderProfile.faProfile = "Percent_60_40"
-        self.placeOrder(self.nextOrderId(), ContractSamples.EuropeanStock(), faOrderProfile)
-        # ! [faorderprofile]
+        # ! [faorderuserdefinedgroup]
+        faOrderUserDefinedGroup = OrderSamples.LimitOrder("BUY", 200, 10)
+        faOrderUserDefinedGroup.faGroup = "MyTestProfile1"
+        self.placeOrder(self.nextOrderId(), ContractSamples.USStockAtSmart(), faOrderUserDefinedGroup)
+        # ! [faorderuserdefinedgroup]
 
         # ! [modelorder]
         modelOrder = OrderSamples.LimitOrder("BUY", 200, 100)
@@ -1925,14 +1909,14 @@ class TestApp(TestWrapper, TestClient):
     def rerouteCFDOperations(self):
         # ! [reqmktdatacfd]
         self.reqMktData(16001, ContractSamples.USStockCFD(), "", False, False, [])
-        self.reqMktData(16002, ContractSamples.EuropeanStockCFD(), "", False, False, []);
-        self.reqMktData(16003, ContractSamples.CashCFD(), "", False, False, []);
+        self.reqMktData(16002, ContractSamples.EuropeanStockCFD(), "", False, False, [])
+        self.reqMktData(16003, ContractSamples.CashCFD(), "", False, False, [])
         # ! [reqmktdatacfd]
 
         # ! [reqmktdepthcfd]
-        self.reqMktDepth(16004, ContractSamples.USStockCFD(), 10, False, []);
-        self.reqMktDepth(16005, ContractSamples.EuropeanStockCFD(), 10, False, []);
-        self.reqMktDepth(16006, ContractSamples.CashCFD(), 10, False, []);
+        self.reqMktDepth(16004, ContractSamples.USStockCFD(), 10, False, [])
+        self.reqMktDepth(16005, ContractSamples.EuropeanStockCFD(), 10, False, [])
+        self.reqMktDepth(16006, ContractSamples.CashCFD(), 10, False, [])
         # ! [reqmktdepthcfd]
 
     def marketRuleOperations(self):

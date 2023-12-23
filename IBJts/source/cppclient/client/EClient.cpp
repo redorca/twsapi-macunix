@@ -1,4 +1,4 @@
-/* Copyright (C) 2019 Interactive Brokers LLC. All rights reserved. This code is subject to the terms
+/* Copyright (C) 2023 Interactive Brokers LLC. All rights reserved. This code is subject to the terms
  * and conditions of the IB API Non-Commercial License or the IB API Commercial License, as applicable. */
 
 #include "StdAfx.h"
@@ -20,6 +20,7 @@
 #include "ETransport.h"
 #include "FamilyCode.h"
 #include "EClientException.h"
+#include "Utils.h"
 
 #include <sstream>
 #include <iomanip>
@@ -63,7 +64,7 @@ template<>
 void EClient::EncodeField<Decimal>(std::ostream& os, Decimal decimalValue)
 {
     char str[128];
-    snprintf(str, sizeof(str), "%s", decimalToString(decimalValue).c_str());
+    snprintf(str, sizeof(str), "%s", DecimalFunctions::decimalToString(decimalValue).c_str());
 
     EncodeField<const char*>(os, str);
 }
@@ -86,7 +87,8 @@ void EClient::EncodeField<std::string>(std::ostream& os, std::string value)
 bool EClient::isAsciiPrintable(const std::string& s)
 {
     return std::all_of(s.begin(), s.end(), [](char c) {
-        return static_cast<unsigned char>(c) >= 32 && static_cast<unsigned char>(c) < 127;
+        return (static_cast<unsigned char>(c) >= 32 && static_cast<unsigned char>(c) < 127) || 
+            static_cast<unsigned char>(c) == 9 || static_cast<unsigned char>(c) == 10 || static_cast<unsigned char>(c) == 13;
     });
 }
 
@@ -1787,7 +1789,9 @@ void EClient::placeOrder( OrderId id, const Contract& contract, const Order& ord
         ENCODE_FIELD( order.faGroup); // srv v13 and above
         ENCODE_FIELD( order.faMethod); // srv v13 and above
         ENCODE_FIELD( order.faPercentage); // srv v13 and above
-        ENCODE_FIELD( order.faProfile); // srv v13 and above
+        if (m_serverVersion < MIN_SERVER_VER_FA_PROFILE_DESUPPORT) {
+            ENCODE_FIELD(""); // send deprecated faProfile field
+        }
 
         if (m_serverVersion >= MIN_SERVER_VER_MODELS_SUPPORT) {
             ENCODE_FIELD( order.modelCode);
@@ -1799,9 +1803,6 @@ void EClient::placeOrder( OrderId id, const Contract& contract, const Order& ord
         if (m_serverVersion >= MIN_SERVER_VER_SSHORTX_OLD) { 
             ENCODE_FIELD( order.exemptCode);
         }
-
-        // not needed anymore
-        //bool isVolOrder = (order.orderType.CompareNoCase("VOL") == 0);
 
         // srv v19 and above fields
         ENCODE_FIELD( order.ocaType);
@@ -1974,7 +1975,7 @@ void EClient::placeOrder( OrderId id, const Contract& contract, const Order& ord
         }
 
         if (m_serverVersion >= MIN_SERVER_VER_PEGGED_TO_BENCHMARK) {
-            if (order.orderType == "PEG BENCH") {
+            if (Utils::isPegBenchOrder(order.orderType)) {
                 ENCODE_FIELD(order.referenceContractId);
                 ENCODE_FIELD(order.isPeggedChangeAmountDecrease);
                 ENCODE_FIELD(order.peggedChangeAmount);
@@ -2067,14 +2068,14 @@ void EClient::placeOrder( OrderId id, const Contract& contract, const Order& ord
                 ENCODE_FIELD_MAX(order.minTradeQty);
             }
             bool sendMidOffsets = false;
-            if (order.orderType == "PEG BEST") {
+            if (Utils::isPegBestOrder(order.orderType)) {
                 ENCODE_FIELD_MAX(order.minCompeteSize);
                 ENCODE_FIELD_MAX(order.competeAgainstBestOffset);
                 if (order.competeAgainstBestOffset == COMPETE_AGAINST_BEST_OFFSET_UP_TO_MID) {
                     sendMidOffsets = true;
                 }
             } 
-            else if (order.orderType == "PEG MID") {
+            else if (Utils::isPegMidOrder(order.orderType)) {
                 sendMidOffsets = true;
             }
             if (sendMidOffsets) {
@@ -2365,11 +2366,10 @@ void EClient::requestFA(faDataType pFaDataType)
         return;
     }
 
-    // Not needed anymore validation
-    //if( m_serverVersion < 13) {
-    //	m_pEWrapper->error( NO_VALID_ID, UPDATE_TWS.code(), UPDATE_TWS.msg());
-    //	return;
-    //}
+    if (m_serverVersion >= MIN_SERVER_VER_FA_PROFILE_DESUPPORT && pFaDataType == 2) {
+        m_pEWrapper->error( NO_VALID_ID, FA_PROFILE_NOT_SUPPORTED.code(), FA_PROFILE_NOT_SUPPORTED.msg(), "");
+        return;
+    }
 
     std::stringstream msg;
     prepareBuffer( msg);
@@ -2387,15 +2387,14 @@ void EClient::replaceFA(int reqId, faDataType pFaDataType, const std::string& cx
 {
     // not connected?
     if( !isConnected()) {
-        m_pEWrapper->error( NO_VALID_ID, NOT_CONNECTED.code(), NOT_CONNECTED.msg(), "");
+        m_pEWrapper->error( reqId, NOT_CONNECTED.code(), NOT_CONNECTED.msg(), "");
         return;
     }
 
-    // Not needed anymore validation
-    //if( m_serverVersion < 13) {
-    //	m_pEWrapper->error( NO_VALID_ID, UPDATE_TWS.code(), UPDATE_TWS.msg());
-    //	return;
-    //}
+    if (m_serverVersion >= MIN_SERVER_VER_FA_PROFILE_DESUPPORT && pFaDataType == 2) {
+        m_pEWrapper->error( reqId, FA_PROFILE_NOT_SUPPORTED.code(), FA_PROFILE_NOT_SUPPORTED.msg(), "");
+        return;
+    }
 
     std::stringstream msg;
     prepareBuffer( msg);
@@ -2423,7 +2422,7 @@ void EClient::replaceFA(int reqId, faDataType pFaDataType, const std::string& cx
 
 void EClient::exerciseOptions( TickerId tickerId, const Contract& contract,
                               int exerciseAction, int exerciseQuantity,
-                              const std::string& account, int override)
+                              const std::string& account, int override, const std::string& manualOrderTime)
 {
     // not connected?
     if( !isConnected()) {
@@ -2443,6 +2442,12 @@ void EClient::exerciseOptions( TickerId tickerId, const Contract& contract,
                 "  It does not support conId, multiplier and tradingClass parameters in exerciseOptions.", "");
             return;
         }
+    }
+
+    if (m_serverVersion < MIN_SERVER_VER_MANUAL_ORDER_TIME_EXERCISE_OPTIONS && !manualOrderTime.empty()) {
+        m_pEWrapper->error(tickerId, UPDATE_TWS.code(), UPDATE_TWS.msg() +
+            "  It does not support manual order time parameter in exerciseOptions.", "");
+        return;
     }
 
     std::stringstream msg;
@@ -2475,6 +2480,9 @@ void EClient::exerciseOptions( TickerId tickerId, const Contract& contract,
         ENCODE_FIELD( exerciseQuantity);
         ENCODE_FIELD( account);
         ENCODE_FIELD( override);
+        if (m_serverVersion >= MIN_SERVER_VER_MANUAL_ORDER_TIME_EXERCISE_OPTIONS) {
+            ENCODE_FIELD( manualOrderTime);
+        }
     }
     catch (EClientException& ex) {
         m_pEWrapper->error(tickerId, ex.error().code(), ex.error().msg() + ex.text(), "");

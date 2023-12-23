@@ -1,5 +1,5 @@
 """
-Copyright (C) 2019 Interactive Brokers LLC. All rights reserved. This code is subject to the terms
+Copyright (C) 2023 Interactive Brokers LLC. All rights reserved. This code is subject to the terms
  and conditions of the IB API Non-Commercial License or the IB API Commercial License, as applicable.
 """
 
@@ -98,7 +98,7 @@ class ContractSamples:
     def Bond():
             #! [bond]
             contract = Contract()
-            contract.conId = 15960357
+            contract.conId = 456467716
             contract.exchange = "SMART"
             #! [bond]
             return contract
@@ -621,78 +621,78 @@ class ContractSamples:
     @staticmethod
     def USStockCFD():
         # ! [usstockcfd_conract]
-        contract = Contract();
-        contract.symbol = "IBM";
-        contract.secType = "CFD";
-        contract.currency = "USD";
-        contract.exchange = "SMART";
+        contract = Contract()
+        contract.symbol = "IBM"
+        contract.secType = "CFD"
+        contract.currency = "USD"
+        contract.exchange = "SMART"
         # ! [usstockcfd_conract]
-        return contract;
+        return contract
 
     @staticmethod
     def EuropeanStockCFD():
         # ! [europeanstockcfd_contract]
-        contract = Contract();
-        contract.symbol = "BMW";
-        contract.secType = "CFD";
-        contract.currency = "EUR";
-        contract.exchange = "SMART";
+        contract = Contract()
+        contract.symbol = "BMW"
+        contract.secType = "CFD"
+        contract.currency = "EUR"
+        contract.exchange = "SMART"
         # ! [europeanstockcfd_contract]
-        return contract;
+        return contract
 
     @staticmethod
     def CashCFD():
         # ! [cashcfd_contract]
-        contract = Contract();
-        contract.symbol = "EUR";
-        contract.secType = "CFD";
-        contract.currency = "USD";
-        contract.exchange = "SMART";
+        contract = Contract()
+        contract.symbol = "EUR"
+        contract.secType = "CFD"
+        contract.currency = "USD"
+        contract.exchange = "SMART"
         # ! [cashcfd_contract]
-        return contract;
+        return contract
 
     @staticmethod
     def QBAlgoContract():
         # ! [qbalgo_contract]
         contract = Contract()
-        contract.symbol = "ES";
-        contract.secType = "FUT";
-        contract.exchange = "QBALGO";
-        contract.currency = "USD";
-        contract.lastTradeDateOrContractMonth = "202003";
+        contract.symbol = "ES"
+        contract.secType = "FUT"
+        contract.exchange = "QBALGO"
+        contract.currency = "USD"
+        contract.lastTradeDateOrContractMonth = "202003"
         # ! [qbalgo_contract]
-        return contract; 
+        return contract
 
     @staticmethod
     def IBKRATSContract():
         # ! [ibkrats_contract]
-        contract = Contract();
-        contract.symbol = "SPY";
-        contract.secType = "STK";
-        contract.currency = "USD";
-        contract.exchange = "IBKRATS";
+        contract = Contract()
+        contract.symbol = "SPY"
+        contract.secType = "STK"
+        contract.currency = "USD"
+        contract.exchange = "IBKRATS"
         # ! [ibkrats_contract]
-        return contract;
+        return contract
 
     @staticmethod
     def CryptoContract():
         # ! [crypto_contract]
-        contract = Contract();
-        contract.symbol = "ETH";
-        contract.secType = "CRYPTO";
-        contract.currency = "USD";
-        contract.exchange = "PAXOS";
+        contract = Contract()
+        contract.symbol = "ETH"
+        contract.secType = "CRYPTO"
+        contract.currency = "USD"
+        contract.exchange = "PAXOS"
         # ! [crypto_contract]
-        return contract;
+        return contract
 
     @staticmethod
     def StockWithIPOPrice():
         # ! [stock_with_IPO_price]
         contract = Contract()
-        contract.symbol = "EMCGU";
-        contract.secType = "STK";
-        contract.currency = "USD";
-        contract.exchange = "SMART";
+        contract.symbol = "EMCGU"
+        contract.secType = "STK"
+        contract.currency = "USD"
+        contract.exchange = "SMART"
         # ! [stock_with_IPO_price]
         return contract
 
@@ -700,9 +700,9 @@ class ContractSamples:
     def ByFIGI():
         # ! [ByFIGI]
         contract = Contract()
-        contract.secIdType = "FIGI";
-        contract.secId = "BBG000B9XRY4";
-        contract.exchange = "SMART";
+        contract.secIdType = "FIGI"
+        contract.secId = "BBG000B9XRY4"
+        contract.exchange = "SMART"
         # ! [ByFIGI]
         return contract
         
@@ -710,8 +710,19 @@ class ContractSamples:
     def ByIssuerId():
         # ! [ByIssuerId]
         contract = Contract()
-        contract.issuerId = "e1453318";
+        contract.issuerId = "e1453318"
         # ! [ByIssuerId]
+        return contract
+
+    @staticmethod
+    def FundContract():
+        # ! [fundcontract]
+        contract = Contract()
+        contract.symbol = "I406801954"
+        contract.secType = "FUND"
+        contract.exchange = "ALLFUNDS"
+        contract.currency = "USD"
+        # ! [fundcontract]
         return contract
 
 def Test():

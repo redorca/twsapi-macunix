@@ -1,4 +1,4 @@
-/* Copyright (C) 2019 Interactive Brokers LLC. All rights reserved. This code is subject to the terms
+/* Copyright (C) 2023 Interactive Brokers LLC. All rights reserved. This code is subject to the terms
  * and conditions of the IB API Non-Commercial License or the IB API Commercial License, as applicable. */
 
 #pragma once
@@ -296,7 +296,7 @@ public:
 		int useRTH, int formatDate, bool keepUpToDate, const TagValueListSPtr& chartOptions);
 	void exerciseOptions(TickerId tickerId, const Contract& contract,
 		int exerciseAction, int exerciseQuantity,
-		const std::string& account, int override);
+		const std::string& account, int override, const std::string& manualOrderTime);
 	void cancelHistoricalData(TickerId tickerId );
 	void reqRealTimeBars(TickerId id, const Contract& contract, int barSize,
 		const std::string& whatToShow, bool useRTH, const TagValueListSPtr& realTimeBarsOptions);

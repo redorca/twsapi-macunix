@@ -1,4 +1,4 @@
-/* Copyright (C) 2019 Interactive Brokers LLC. All rights reserved. This code is subject to the terms
+/* Copyright (C) 2023 Interactive Brokers LLC. All rights reserved. This code is subject to the terms
  * and conditions of the IB API Non-Commercial License or the IB API Commercial License, as applicable. */
 
 package TestJavaClient;
@@ -483,6 +483,10 @@ public class ExtOrdDlg extends JDialog {
     void onCancel() {
         m_rc = false;
         setVisible( false);
+    }
+
+    public String manualOrderTime() {
+        return m_manualOrderTime.getText();
     }
     
     public String manualOrderCancelTime() {

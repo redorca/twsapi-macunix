@@ -7,6 +7,7 @@ BASE_SRC_DIR=${ROOT_DIR}
 INCLUDES=-I${ROOT_DIR}
 TARGET=libTwsSocketClient.so
 SRCS =	ContractCondition.cpp          \
+	Decimal.cpp                    \
 	DefaultEWrapper.cpp            \
 	EClient.cpp                    \
 	EClientSocket.cpp              \
@@ -26,6 +27,7 @@ SRCS =	ContractCondition.cpp          \
 	SoftDollarTier.cpp             \
 	StdAfx.cpp                     \
 	TimeCondition.cpp              \
+	Utils.cpp                      \
 	VolumeCondition.cpp            \
 
 OBJS = ${SRCS:.cpp=.o}

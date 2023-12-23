@@ -1,4 +1,4 @@
-/* Copyright (C) 2019 Interactive Brokers LLC. All rights reserved. This code is subject to the terms
+/* Copyright (C) 2023 Interactive Brokers LLC. All rights reserved. This code is subject to the terms
  * and conditions of the IB API Non-Commercial License or the IB API Commercial License, as applicable. */
 
 package com.ib.client;
@@ -101,23 +101,6 @@ public abstract class EClient {
     protected static final int CLIENT_VERSION = 66;
     protected static final int MIN_SERVER_VER_SUPPORTED = 38; //all supported server versions are listed below
     
-    // FA msg data types
-    public static final int GROUPS = 1;
-    public static final int PROFILES = 2;
-    public static final int ALIASES = 3;
-
-	public static String faMsgTypeName(int faDataType) {
-        switch (faDataType) {
-            case GROUPS:
-                return "GROUPS";
-            case PROFILES:
-                return "PROFILES";
-            case ALIASES:
-                return "ALIASES";
-        }
-        return null;
-    }
-
     // outgoing msg id's
     private static final int REQ_MKT_DATA = 1;
     private static final int CANCEL_MKT_DATA = 2;
@@ -318,9 +301,13 @@ public abstract class EClient {
     protected static final int MIN_SERVER_VER_INSTRUMENT_TIMEZONE = 174;
     protected static final int MIN_SERVER_VER_HMDS_MARKET_DATA_IN_SHARES = 175;
     protected static final int MIN_SERVER_VER_BOND_ISSUERID = 176;
+    protected static final int MIN_SERVER_VER_FA_PROFILE_DESUPPORT = 177;
+    protected static final int MIN_SERVER_VER_PENDING_PRICE_REVISION = 178;
+    protected static final int MIN_SERVER_VER_FUND_DATA_FIELDS = 179;
+    protected static final int MIN_SERVER_VER_MANUAL_ORDER_TIME_EXERCISE_OPTIONS = 180;
     
     public static final int MIN_VERSION = 100; // envelope encoding, applicable to useV100Plus mode only
-    public static final int MAX_VERSION = MIN_SERVER_VER_BOND_ISSUERID; // ditto
+    public static final int MAX_VERSION = MIN_SERVER_VER_MANUAL_ORDER_TIME_EXERCISE_OPTIONS; // ditto
 
     protected EReaderSignal m_signal;
     protected EWrapper m_eWrapper;    // msg handler
@@ -975,7 +962,7 @@ public abstract class EClient {
     		closeAndSend(b);
     	}
     	catch (Exception e) {
-    		error(tickerId, EClientErrors.FAIL_SEND_CANHEADTIMESTAMP, e.toString());
+    		error(tickerId, EClientErrors.FAIL_SEND_CANCELHEADTIMESTAMP, e.toString());
     		close();
         }
    }
@@ -1328,7 +1315,7 @@ public abstract class EClient {
 
     public synchronized void exerciseOptions( int tickerId, Contract contract,
                                               int exerciseAction, int exerciseQuantity,
-                                              String account, int override) {
+                                              String account, int override, String manualOrderTime) {
         // not connected?
         if( !isConnected()) {
             notConnected();
@@ -1350,6 +1337,12 @@ public abstract class EClient {
                           "  It does not support conId and tradingClass parameters in exerciseOptions.");
                       return;
                 }
+            }
+
+            if (m_serverVersion < MIN_SERVER_VER_MANUAL_ORDER_TIME_EXERCISE_OPTIONS && !IsEmpty(manualOrderTime)) {
+                  error(tickerId, EClientErrors.UPDATE_TWS,
+                      "  It does not support manual order time parameter in exerciseOptions.");
+                  return;
             }
 
             Builder b = prepareBuffer(); 
@@ -1378,6 +1371,9 @@ public abstract class EClient {
             b.send(exerciseQuantity);
             b.send(account);
             b.send(override);
+            if (m_serverVersion >= MIN_SERVER_VER_MANUAL_ORDER_TIME_EXERCISE_OPTIONS) {
+                b.send(manualOrderTime);
+            }
 
             closeAndSend(b);
         }
@@ -1881,7 +1877,9 @@ public abstract class EClient {
                b.send( order.faGroup());
                b.send( order.getFaMethod());
                b.send( order.faPercentage());
-               b.send( order.faProfile());
+               if ( m_serverVersion < MIN_SERVER_VER_FA_PROFILE_DESUPPORT ) {
+                   b.send( ""); // send deprecated faProfile field
+               }
            }
 
            if ( m_serverVersion >= MIN_SERVER_VER_MODELS_SUPPORT ) {
@@ -1914,10 +1912,10 @@ public abstract class EClient {
                b.sendMax( order.stockRefPrice());
                b.sendMax( order.delta());
         	   // Volatility orders had specific watermark price attribs in server version 26
-        	   double lower = (m_serverVersion == 26 && order.getOrderType().equals("VOL"))
+        	   double lower = (m_serverVersion == 26 && Util.IsVolOrder(order.orderType()))
         	   		? Double.MAX_VALUE
         	   		: order.stockRangeLower();
-        	   double upper = (m_serverVersion == 26 && order.getOrderType().equals("VOL"))
+        	   double upper = (m_serverVersion == 26 && Util.IsVolOrder(order.orderType()))
    	   				? Double.MAX_VALUE
    	   				: order.stockRangeUpper();
                b.sendMax( lower);
@@ -1954,8 +1952,8 @@ public abstract class EClient {
                b.send( order.continuousUpdate());
                if (m_serverVersion == 26) {
             	   // Volatility orders had specific watermark price attribs in server version 26
-            	   double lower = order.getOrderType().equals("VOL") ? order.stockRangeLower() : Double.MAX_VALUE;
-            	   double upper = order.getOrderType().equals("VOL") ? order.stockRangeUpper() : Double.MAX_VALUE;
+            	   double lower = Util.IsVolOrder(order.orderType()) ? order.stockRangeLower() : Double.MAX_VALUE;
+            	   double upper = Util.IsVolOrder(order.orderType()) ? order.stockRangeUpper() : Double.MAX_VALUE;
                    b.sendMax( lower);
                    b.sendMax( upper);
                }
@@ -2068,7 +2066,7 @@ public abstract class EClient {
            }
            
            if (m_serverVersion >= MIN_SERVER_VER_PEGGED_TO_BENCHMARK) {
-        	   if (order.orderType() == OrderType.PEG_BENCH) {
+        	   if (Util.IsPegBenchOrder(order.orderType())) {
         		   b.send(order.referenceContractId());
         		   b.send(order.isPeggedChangeAmountDecrease());
         		   b.send(order.peggedChangeAmount());
@@ -2163,13 +2161,13 @@ public abstract class EClient {
                    b.sendMax(order.minTradeQty());
                }
                boolean sendMidOffsets = false;
-               if (order.orderType().equals(OrderType.PEG_BEST)) {
+               if (Util.IsPegBestOrder(order.orderType())) {
                    b.sendMax(order.minCompeteSize());
                    b.sendMax(order.competeAgainstBestOffset());
                    if (order.isCompeteAgainstBestOffsetUpToMid()) {
                        sendMidOffsets = true;
                    }
-               } else if (order.orderType().equals(OrderType.PEG_MID)) {
+               } else if (Util.IsPegMidOrder(order.orderType())) {
                    sendMidOffsets = true;
                }
                if (sendMidOffsets) {
@@ -2494,6 +2492,10 @@ public abstract class EClient {
         }
     }
 
+    public void requestFA( Types.FADataType faDataType ) {
+        requestFA(faDataType.id());
+    }
+
     public synchronized void requestFA( int faDataType ) {
         // not connected?
         if( !isConnected()) {
@@ -2501,10 +2503,9 @@ public abstract class EClient {
             return;
         }
 
-        // This feature is only available for versions of TWS >= 13
-        if( m_serverVersion < 13) {
-            error(EClientErrors.NO_VALID_ID, EClientErrors.UPDATE_TWS.code(),
-                    EClientErrors.UPDATE_TWS.msg());
+        if (m_serverVersion >= MIN_SERVER_VER_FA_PROFILE_DESUPPORT && faDataType == 2) {
+            error(EClientErrors.NO_VALID_ID, EClientErrors.FA_PROFILE_NOT_SUPPORTED.code(),
+                    EClientErrors.FA_PROFILE_NOT_SUPPORTED.msg());
             return;
         }
 
@@ -2525,6 +2526,10 @@ public abstract class EClient {
         }
     }
 
+    public void replaceFA ( int reqId, Types.FADataType faDataType, String xml) {
+        replaceFA (reqId, faDataType.id(), xml);
+    }
+
     public synchronized void replaceFA( int reqId, int faDataType, String xml ) {
         // not connected?
         if( !isConnected()) {
@@ -2532,10 +2537,9 @@ public abstract class EClient {
             return;
         }
 
-        // This feature is only available for versions of TWS >= 13
-        if( m_serverVersion < 13) {
-            error(EClientErrors.NO_VALID_ID, EClientErrors.UPDATE_TWS.code(),
-                    EClientErrors.UPDATE_TWS.msg());
+        if (m_serverVersion >= MIN_SERVER_VER_FA_PROFILE_DESUPPORT && faDataType == 2) {
+            error(reqId, EClientErrors.FA_PROFILE_NOT_SUPPORTED.code(),
+                    EClientErrors.FA_PROFILE_NOT_SUPPORTED.msg());
             return;
         }
 
@@ -3750,7 +3754,7 @@ public abstract class EClient {
             error(tickerId, e.error(), e.text());
         }
         catch (Exception e) {
-            error(tickerId, EClientErrors.FAIL_SEND_REQHISTDATA, e.toString());
+            error(tickerId, EClientErrors.FAIL_SEND_REQHISTOGRAMDATA, e.toString());
             close();
         }
     }
@@ -3778,7 +3782,7 @@ public abstract class EClient {
             closeAndSend(b);
         }
         catch( Exception e) {
-            error( tickerId, EClientErrors.FAIL_SEND_CANHISTDATA, e.toString());
+            error( tickerId, EClientErrors.FAIL_SEND_CANCELHISTOGRAMDATA, e.toString());
             close();
         }
     }
@@ -3863,7 +3867,7 @@ public abstract class EClient {
             closeAndSend(b);
         } 
         catch(Exception e) {
-            error(reqId, EClientErrors.FAIL_SEND_CANPNL, e.toString());
+            error(reqId, EClientErrors.FAIL_SEND_CANCELPNL, e.toString());
             close();
         }
     }
@@ -3895,7 +3899,7 @@ public abstract class EClient {
             error(reqId, e.error(), e.text());
         }
         catch(Exception e) {
-            error(reqId, EClientErrors.FAIL_SEND_REQPNL_SINGLE, e.toString());
+            error(reqId, EClientErrors.FAIL_SEND_REQPNLSINGLE, e.toString());
             close();
         }
     }
@@ -3920,7 +3924,7 @@ public abstract class EClient {
 
             closeAndSend(b);
         } catch(Exception e) {
-            error(reqId, EClientErrors.FAIL_SEND_CANPNL_SINGLE, e.toString());
+            error(reqId, EClientErrors.FAIL_SEND_CANCELPNLSINGLE, e.toString());
             close();
         }
     }
@@ -3959,7 +3963,7 @@ public abstract class EClient {
             error(reqId, e.error(), e.text());
         }
         catch(Exception e) {
-            error(reqId, EClientErrors.FAIL_SEND_HISTORICAL_TICK, e.toString());
+            error(reqId, EClientErrors.FAIL_SEND_REQHISTORICALTICKS, e.toString());
             close();
         }        
     }
@@ -4014,7 +4018,7 @@ public abstract class EClient {
             error(reqId, e.error(), e.text());
         }
         catch(Exception e) {
-            error(reqId, EClientErrors.FAIL_SEND_REQTICKBYTICK, e.toString());
+            error(reqId, EClientErrors.FAIL_SEND_REQTICKBYTICKDATA, e.toString());
             close();
         }
     }
@@ -4042,7 +4046,7 @@ public abstract class EClient {
         }
         catch( Exception e) {
             error( EClientErrors.NO_VALID_ID,
-                   EClientErrors.FAIL_SEND_CANTICKBYTICK, e.toString());
+                   EClientErrors.FAIL_SEND_CANCELTICKBYTICKDATA, e.toString());
             close();
         }
     }
@@ -4070,7 +4074,7 @@ public abstract class EClient {
         }
         catch( Exception e) {
             error( EClientErrors.NO_VALID_ID,
-                   EClientErrors.FAIL_SEND_REQ_COMPLETED_ORDERS, e.toString());
+                   EClientErrors.FAIL_SEND_REQCOMPLETEDORDERS, e.toString());
             close();
         }
     }
@@ -4182,7 +4186,7 @@ public abstract class EClient {
         }
         catch( Exception e) {
             error( EClientErrors.NO_VALID_ID,
-                   EClientErrors.FAIL_SEND_REQ_WSH_META_DATA, e.toString());
+                   EClientErrors.FAIL_SEND_REQ_WSH_EVENT_DATA, e.toString());
             close();
         }   	
     }
@@ -4237,7 +4241,7 @@ public abstract class EClient {
             closeAndSend(b);
         }
         catch( Exception e) {
-            error(reqId, EClientErrors.FAIL_SEND_REQUSERINFO, e.toString());
+            error(reqId, EClientErrors.FAIL_SEND_REQ_USER_INFO, e.toString());
             close();
         }
     }    
