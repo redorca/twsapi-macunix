@@ -33,7 +33,7 @@ OBJS = ${SRCS:.cpp=.o}
 $(TARGET): $(OBJS)
 	$(LD) $(LDFLAGS) $* -o $@
 
-$(OBJS):
+$(OBJS): $(SRCS)
 	$(CXX) $(CXXFLAGS) ${@:.o=.cpp} $(INCLUDES) -o $@
 
 clean:
