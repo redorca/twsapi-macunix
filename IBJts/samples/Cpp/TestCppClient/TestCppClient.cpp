@@ -582,13 +582,14 @@ void TestCppClient::historicalDataRequests()
 {
 	/*** Requesting historical data ***/
 	//! [reqhistoricaldata]
-	std::time_t rawtime;
-    std::tm timeinfo;
-    char queryTime[80];
+	std::time_t rawTime;
+        std::tm timeinfo, *ptimeinfo;
+        char queryTime[80];
 
-	std::time(&rawtime);
-    gmtime_s(&timeinfo, &rawtime);
-    std::strftime(queryTime, sizeof queryTime, "%Y%m%d-%H:%M:%S", &timeinfo);
+	std::time(&rawTime);
+        ptimeinfo = &timeinfo;
+        ptimeinfo = gmtime_r(&rawTime, ptimeinfo);
+        std::strftime(queryTime, sizeof queryTime, "%Y%m%d-%H:%M:%S", &timeinfo);
 
 	m_pClient->reqHistoricalData(4001, ContractSamples::EurGbpFx(), queryTime, "1 M", "1 day", "MIDPOINT", 1, 1, false, TagValueListSPtr());
 	m_pClient->reqHistoricalData(4002, ContractSamples::EuropeanStock(), queryTime, "10 D", "1 min", "TRADES", 1, 1, false, TagValueListSPtr());
@@ -1333,11 +1334,12 @@ void TestCppClient::continuousFuturesOperations()
 
 	//! [reqhistoricaldatacontfut]
 	std::time_t rawtime;
-    std::tm timeinfo;
+    std::tm timeinfo, *ptimeinfo;
     char queryTime[80];
 
 	std::time(&rawtime);
-    gmtime_s(&timeinfo, &rawtime);
+        ptimeinfo = &timeinfo;
+        ptimeinfo = gmtime_r(&rawtime, ptimeinfo);
     std::strftime(queryTime, sizeof queryTime, "%Y%m%d %H:%M:%S", &timeinfo);
 
 	m_pClient->reqHistoricalData(18002, ContractSamples::ContFut(), queryTime, "1 Y", "1 month", "TRADES", 0, 1, false, TagValueListSPtr());
@@ -1500,9 +1502,9 @@ void TestCppClient::currentTime( long time)
 	if ( m_state == ST_PING_ACK) {
 		time_t t = ( time_t)time;
         struct tm timeinfo;
-        localtime_s(&timeinfo, &t);
+        localtime_r(&t, &timeinfo);
         char currentTime[80];
-        asctime_s(currentTime, sizeof currentTime, &timeinfo);
+        asctime_r(&timeinfo, currentTime);
         printf( "The current date/time is: %s", currentTime);
 
 		time_t now = ::time(NULL);
@@ -2033,7 +2035,7 @@ void TestCppClient::mktDepthExchanges(const std::vector<DepthMktDataDescription>
 //! [tickNews]
 void TestCppClient::tickNews(int tickerId, time_t timeStamp, const std::string& providerCode, const std::string& articleId, const std::string& headline, const std::string& extraData) {
     char timeStampStr[80];
-    ctime_s(timeStampStr, sizeof(timeStampStr), &(timeStamp /= 1000));
+    ctime_r(&timeStamp, timeStampStr);
     printf("News Tick. TickerId: %d, TimeStamp: %s, ProviderCode: %s, ArticleId: %s, Headline: %s, ExtraData: %s\n", tickerId, timeStampStr, providerCode.c_str(), articleId.c_str(), headline.c_str(), extraData.c_str());
 }
 //! [tickNews]
@@ -2168,9 +2170,12 @@ void TestCppClient::pnlSingle(int reqId, Decimal pos, double dailyPnL, double un
 //! [historicalticks]
 void TestCppClient::historicalTicks(int reqId, const std::vector<HistoricalTick>& ticks, bool done) {
     for (const HistoricalTick& tick : ticks) {
-        std::time_t t = tick.time;
+        // std::time_t t = tick.time;
         char timeStr[80];
-        ctime_s(timeStr, sizeof(timeStr), &t);
+        std::time_t rawTime;
+        std::time(&rawTime);
+        ctime_r(&rawTime, timeStr);
+        // ctime_s(timeStr, sizeof(timeStr), &t);
         std::cout << "Historical tick. ReqId: " << reqId << ", time: " << timeStr << ", price: "<< Utils::doubleMaxString(tick.price).c_str()	<< ", size: " << DecimalFunctions::decimalStringToDisplay(tick.size).c_str() << std::endl;
     }
 }
@@ -2179,9 +2184,11 @@ void TestCppClient::historicalTicks(int reqId, const std::vector<HistoricalTick>
 //! [historicalticksbidask]
 void TestCppClient::historicalTicksBidAsk(int reqId, const std::vector<HistoricalTickBidAsk>& ticks, bool done) {
     for (const HistoricalTickBidAsk& tick : ticks) {
-        std::time_t t = tick.time;
+        // std::time_t t = tick.time;
         char timeStr[80];
-        ctime_s(timeStr, sizeof(timeStr), &t);
+        std::time_t rawTime;
+        std::time(&rawTime);
+        ctime_r(&rawTime, timeStr);
         std::cout << "Historical tick bid/ask. ReqId: " << reqId << ", time: " << timeStr << ", price bid: "<< Utils::doubleMaxString(tick.priceBid).c_str()	<<
             ", price ask: "<< Utils::doubleMaxString(tick.priceAsk).c_str() << ", size bid: " << DecimalFunctions::decimalStringToDisplay(tick.sizeBid).c_str() << ", size ask: " << DecimalFunctions::decimalStringToDisplay(tick.sizeAsk).c_str() <<
             ", bidPastLow: " << tick.tickAttribBidAsk.bidPastLow << ", askPastHigh: " << tick.tickAttribBidAsk.askPastHigh << std::endl;
@@ -2192,9 +2199,11 @@ void TestCppClient::historicalTicksBidAsk(int reqId, const std::vector<Historica
 //! [historicaltickslast]
 void TestCppClient::historicalTicksLast(int reqId, const std::vector<HistoricalTickLast>& ticks, bool done) {
     for (HistoricalTickLast tick : ticks) {
-        std::time_t t = tick.time;
+        // std::time_t t = tick.time;
         char timeStr[80];
-        ctime_s(timeStr, sizeof(timeStr), &t);
+        std::time_t rawTime;
+        std::time(&rawTime);
+        ctime_r(&rawTime, timeStr);
         std::cout << "Historical tick last. ReqId: " << reqId << ", time: " << timeStr << ", price: "<< Utils::doubleMaxString(tick.price).c_str() <<
             ", size: " << DecimalFunctions::decimalStringToDisplay(tick.size).c_str() << ", exchange: " << tick.exchange << ", special conditions: " << tick.specialConditions <<
             ", unreported: " << tick.tickAttribLast.unreported << ", pastLimit: " << tick.tickAttribLast.pastLimit << std::endl;
@@ -2205,7 +2214,7 @@ void TestCppClient::historicalTicksLast(int reqId, const std::vector<HistoricalT
 //! [tickbytickalllast]
 void TestCppClient::tickByTickAllLast(int reqId, int tickType, time_t time, double price, Decimal size, const TickAttribLast& tickAttribLast, const std::string& exchange, const std::string& specialConditions) {
     char timeStr[80];
-    ctime_s(timeStr, sizeof(timeStr), &time);
+    ctime_r(&time, timeStr);
     printf("Tick-By-Tick. ReqId: %d, TickType: %s, Time: %s, Price: %s, Size: %s, PastLimit: %d, Unreported: %d, Exchange: %s, SpecialConditions:%s\n", 
         reqId, (tickType == 1 ? "Last" : "AllLast"), timeStr, Utils::doubleMaxString(price).c_str(), DecimalFunctions::decimalStringToDisplay(size).c_str(), tickAttribLast.pastLimit, tickAttribLast.unreported, exchange.c_str(), specialConditions.c_str());
 }
@@ -2214,7 +2223,7 @@ void TestCppClient::tickByTickAllLast(int reqId, int tickType, time_t time, doub
 //! [tickbytickbidask]
 void TestCppClient::tickByTickBidAsk(int reqId, time_t time, double bidPrice, double askPrice, Decimal bidSize, Decimal askSize, const TickAttribBidAsk& tickAttribBidAsk) {
     char timeStr[80];
-    ctime_s(timeStr, sizeof(timeStr), &time);
+    ctime_r(&time, timeStr);
     printf("Tick-By-Tick. ReqId: %d, TickType: BidAsk, Time: %s, BidPrice: %s, AskPrice: %s, BidSize: %s, AskSize: %s, BidPastLow: %d, AskPastHigh: %d\n", 
         reqId, timeStr, Utils::doubleMaxString(bidPrice).c_str(), Utils::doubleMaxString(askPrice).c_str(), DecimalFunctions::decimalStringToDisplay(bidSize).c_str(), DecimalFunctions::decimalStringToDisplay(askSize).c_str(), tickAttribBidAsk.bidPastLow, tickAttribBidAsk.askPastHigh);
 }
@@ -2223,7 +2232,7 @@ void TestCppClient::tickByTickBidAsk(int reqId, time_t time, double bidPrice, do
 //! [tickbytickmidpoint]
 void TestCppClient::tickByTickMidPoint(int reqId, time_t time, double midPoint) {
     char timeStr[80];
-    ctime_s(timeStr, sizeof(timeStr), &time);
+    ctime_r(&time, timeStr);
     printf("Tick-By-Tick. ReqId: %d, TickType: MidPoint, Time: %s, MidPoint: %s\n", reqId, timeStr, Utils::doubleMaxString(midPoint).c_str());
 }
 //! [tickbytickmidpoint]
