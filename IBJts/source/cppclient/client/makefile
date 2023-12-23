@@ -1,13 +1,15 @@
 CXX=g++
+LD=ld
 CXXFLAGS= -c -pthread -Wall -Wno-switch -Wno-unused-function -std=c++11 -fPIC
 LDFLAGS = -shared -Llib -lbid
-LD      = ld
 ROOT_DIR=.
 BASE_SRC_DIR=${ROOT_DIR}
 INCLUDES=-I${ROOT_DIR}
 TARGET=libTwsSocketClient.so
-
-SRCS =	ContractCondition.cpp DefaultEWrapper.cpp EClient.cpp EClientSocket.cpp	\
+SRCS =	ContractCondition.cpp          \
+	DefaultEWrapper.cpp            \
+	EClient.cpp                    \
+	EClientSocket.cpp              \
 	EDecoder.cpp                   \
 	EMessage.cpp                   \
 	EMutex.cpp                     \
@@ -29,7 +31,7 @@ SRCS =	ContractCondition.cpp DefaultEWrapper.cpp EClient.cpp EClientSocket.cpp	\
 OBJS = ${SRCS:.cpp=.o}
 
 $(TARGET): $(OBJS)
-	$(LD) $(LDFLAGS) $# -o $@
+	$(LD) $(LDFLAGS) $* -o $@
 
 $(OBJS):
 	$(CXX) $(CXXFLAGS) ${@:.o=.cpp} $(INCLUDES) -o $@
