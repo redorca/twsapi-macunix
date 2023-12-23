@@ -8,6 +8,7 @@
 #include "TagValue.h"
 #include "Decimal.h"
 #include "CommonDefs.h"
+#include <climits>
 
 /*
 	SAME_POS    = open/close leg value is same as combo
