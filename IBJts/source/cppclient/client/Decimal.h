@@ -2,10 +2,11 @@
  * and conditions of the IB API Non-Commercial License or the IB API Commercial License, as applicable. */
 
 #pragma once
-#ifndef TWS_API_CLIENT_DECIMAL_H
-#define TWS_API_CLIENT_DECIMAL_H
+// #ifndef TWS_API_CLIENT_DECIMAL_H
+// #define TWS_API_CLIENT_DECIMAL_H
 
 #include <string>
+#include "platformspecific.h"
 
 // Decimal type
 typedef unsigned long long Decimal;
@@ -36,4 +37,4 @@ public:
     static std::string decimalStringToDisplay(Decimal value);
 };
 
-#endif
+// #endif
